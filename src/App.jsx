@@ -14,6 +14,7 @@ import Home from "./components/pages/front/Home";
 import Login from "./components/pages/front/Auth/Login";
 import Register from "./components/pages/front/Auth/Register";
 import Dashboard from "./components/pages/backoffice/Dashboard";
+import { Suspense } from "react";
 
 function App() {
   const [user, setUser] = useRecoilState(userState);
@@ -46,31 +47,33 @@ function App() {
   }, [user.loggedIn]);
 
   return (
-    <AppWrapper>
-      <Switch>
-        {user.loggedIn && (
-          <>
-            <Route path="/securized" exact>
-              <Dashboard />
-            </Route>
-          </>
-        )}
+    <Suspense fallback="Chargement...">
+      <AppWrapper>
+        <Switch>
+          {user.loggedIn && (
+            <>
+              <Route path="/securized" exact>
+                <Dashboard />
+              </Route>
+            </>
+          )}
 
-        <Route path="/" exact>
-          <Home />
-        </Route>
+          <Route path="/" exact>
+            <Home />
+          </Route>
 
-        <Route path="/login">
-          <Login />
-        </Route>
-        <Route path="/register">
-          <Register />
-        </Route>
+          <Route path="/login">
+            <Login />
+          </Route>
+          <Route path="/register">
+            <Register />
+          </Route>
 
-        <Route path="/404" component={NoFound} />
-        <Route component={NoFound} />
-      </Switch>
-    </AppWrapper>
+          <Route path="/404" component={NoFound} />
+          <Route component={NoFound} />
+        </Switch>
+      </AppWrapper>
+    </Suspense>
   );
 }
 

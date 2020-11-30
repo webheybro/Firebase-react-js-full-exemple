@@ -1,132 +1,133 @@
 import { Button, IconButton } from "@material-ui/core";
 import { Delete, Edit } from "@material-ui/icons";
 import React from "react";
+import { useRecoilState } from "recoil";
 import appFirebase from "../../firebase/appFirebase";
 
 import useAuth from "../../firebase/useAuth";
 import MyInputText from "../../my/MyForm/MyInputText/MyInputText";
+import {
+  initTodosSelectors,
+  allTodosSelectors,
+} from "../../recoil/trucs/selectors";
 
 const Dashboard = () => {
   useAuth();
 
   const db = appFirebase.firestore(); //Penser à changer les règles de lecture
 
-  const [tousLesTrucs, setTousLesTrucs] = React.useState([]);
+  const [addTodo, setAddTodo] = React.useState();
+  const [editTodo, setEditTodo] = React.useState();
+  const [updateTodo, setUpdateTodo] = React.useState();
 
-  const [addState, setAddState] = React.useState();
-  const [editState, setEditState] = React.useState();
-  const [updateState, setUpdateState] = React.useState();
+  const [initTodos, setInitTodos] = useRecoilState(initTodosSelectors);
+  const [allTodos, setAllTodos] = useRecoilState(allTodosSelectors);
 
-  /* LIST */
+  /* -------- INIT RECOIL WITH FIREBASE -------- */
   React.useEffect(() => {
-    if (!tousLesTrucs.length) {
-      const fetchData = async () => {
-        const data = await db.collection("destrucs").get();
-        const nouvelleListdeTrucs = [];
-        data.docs.map((doc) => {
-          const data = doc.data();
-          const id = doc.id;
-          return nouvelleListdeTrucs.push({ id, ...data });
-        });
-        setTousLesTrucs(nouvelleListdeTrucs);
-      };
-      fetchData();
-    }
+    if (!allTodos.length) setInitTodos(initTodos);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* AJOUT */
+  /* ADD */
   const onHandleChange = (e) => {
     const value = e.target.value;
-    setAddState(value);
-  };
-
-  const onHandleSubmit = async (e) => {
-    e.preventDefault();
-    const newTruc = { label: addState };
-
-    await db
-      .collection("destrucs")
-      .add(newTruc)
-      .then((res) => {
-        /* AJOUT DE L'ID POUR MANIPS */
-        res.update({ id: res.id });
-        newTruc.id = res.id;
-
-        //On ajoute ensuite à la liste le nouvel élément
-        const nouvelleListdeTrucs = [newTruc];
-        const newRefs = [...nouvelleListdeTrucs, ...tousLesTrucs];
-        setTousLesTrucs(newRefs);
-        setAddState("");
-      });
-  };
-
-  /* DELETE */
-  const onHandleDelete = async (id) => {
-    await db
-      .collection("destrucs")
-      .doc(id)
-      .delete()
-      .then(() => {
-        const list = [...tousLesTrucs];
-        const newList = list.filter((v) => v.id !== id);
-        setTousLesTrucs(newList);
-      });
+    setAddTodo(value);
   };
 
   /* UPDATE */
   const onHandleUpdateChange = (e) => {
     const value = e.target.value;
-    setUpdateState(value);
+    setUpdateTodo(value);
   };
 
+  /* FORM VISIBILITY */
+  const onHandleEdit = (id) => {
+    const one = allTodos.filter((item) => item.id === id);
+    setEditTodo(id);
+    setUpdateTodo(one[0].label);
+  };
+  const onHandleClear = () => {
+    setEditTodo("");
+    setUpdateTodo("");
+  };
+
+  /* -------- WITH FIREBASE -------- */
+
+  /* ADD */
+  const onHandleSubmit = async (e) => {
+    e.preventDefault();
+    const newTodo = { label: addTodo };
+
+    await db
+      .collection("todos")
+      .add(newTodo)
+      .then((res) => {
+        //AJOUT DE L'ID POUR MANIPS
+        res.update({ id: res.id });
+        newTodo.id = res.id;
+
+        //On ajoute ensuite à la liste le nouvel élément
+        const nouvelleListdeTrucs = [newTodo];
+        const newRefs = [...nouvelleListdeTrucs, ...allTodos];
+        setAllTodos(newRefs);
+        setAddTodo("");
+      });
+  };
+
+  /* UPDATE */
   const onHandleUpdate = async (e) => {
     e.preventDefault();
 
-    const res = db.collection("destrucs").doc(editState);
-    res.update({ label: updateState });
+    const res = db.collection("todos").doc(editTodo);
+    res.update({ label: updateTodo });
+
     //on récupe les infos du doc
+    //mise à jour de la list
+    //Juste pour l'exemple car inutile : newList = { id:editTodo, label: updateTodo }
     res.get().then(function (doc) {
-      const newList = tousLesTrucs.map((item) => {
-        if (item.id === editState) return doc.data();
+      const newList = allTodos.map((item) => {
+        if (item.id === editTodo) return doc.data();
         return item;
       });
-      setTousLesTrucs(newList);
-      setUpdateState("");
-      setEditState("");
+      setAllTodos(newList);
+      setUpdateTodo("");
+      setEditTodo("");
     });
   };
-  const onHandleEdit = (id) => {
-    const one = tousLesTrucs.filter((item) => item.id === id);
-    setEditState(id);
-    setUpdateState(one[0].label);
-  };
-  const onHandleClear = () => {
-    setEditState("");
-    setUpdateState("");
+
+  /* DELETE */
+  const onHandleDelete = async (id) => {
+    await db
+      .collection("todos")
+      .doc(id)
+      .delete()
+      .then(() => {
+        const list = [...allTodos];
+        const newList = list.filter((v) => v.id !== id);
+        setAllTodos(newList);
+      });
   };
 
   return (
     <div className="container mt-5 text-center text-xxxl uppercase">
-      <AjouterModifUnTruc
+      <FormTodo
         onSubmit={onHandleUpdate}
         onChange={(e) => onHandleUpdateChange(e)}
-        value={updateState}
+        value={updateTodo}
         onClear={onHandleClear}
         btn="Modifier"
-        id="updateUnTruc"
-        visible={editState ? true : false}
+        visible={editTodo ? true : false}
       />
-      <AjouterModifUnTruc
+      <FormTodo
         onSubmit={onHandleSubmit}
         onChange={onHandleChange}
-        value={addState}
-        id="ajouteUnTruc"
-        visible={editState ? false : true}
+        value={addTodo}
+        visible={editTodo ? false : true}
       />
 
-      <ListDeTrucs
-        list={tousLesTrucs}
+      <ListTodos
+        list={allTodos}
         onEdit={onHandleEdit}
         onDelete={onHandleDelete}
       />
@@ -136,7 +137,7 @@ const Dashboard = () => {
 
 export default Dashboard;
 
-const AjouterModifUnTruc = ({
+const FormTodo = ({
   onSubmit,
   onChange,
   value,
@@ -150,7 +151,6 @@ const AjouterModifUnTruc = ({
       <div className="d-flex w-100">
         <div className="w-100 mr-3">
           <MyInputText
-            id={id}
             type="text"
             name={id}
             placeholder="Ecris un truc"
@@ -187,7 +187,7 @@ const AjouterModifUnTruc = ({
   </div>
 );
 
-const ListDeTrucs = ({ list, onDelete, onEdit }) => {
+const ListTodos = ({ list, onDelete, onEdit }) => {
   return list.map((item) => (
     <div key={item.id}>
       <div className="d-flex justify-content-center align-items-center mt-3">
